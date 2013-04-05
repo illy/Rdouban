@@ -17,7 +17,7 @@ ggplot(time_df, aes(x = month, fill=year,colour=amount)) +
                 label=amount,hjust=ifelse(sign(amount)>0, 1, 0)),
             vjust=-0.5,size=6,colour=amount,
             position = position_dodge(width=1))+
- labs(x='年-月份', y='读书数量(本)',title =paste0('总共阅读 ',sum(amount),' 本书'))
+  labs(x='年-月份', y='读书数量(本)',title =paste0('总共阅读 ',sum(amount),' 本书'))
 dev.off()
 
 #######
@@ -129,3 +129,54 @@ plot(g, layout=layout.fruchterman.reingold, vertex.size=col,
      edge.arrow.size=0.5,vertex.label=name,
      vertex.label.color=col+2)
 dev.off()
+########################
+comment<-collect$book_comment
+
+url=collect$book_url
+id<-gsub('[^0-9]','',url)
+n=length(id)
+books<-vector('list')
+for(i in 1:n){
+  books[[i]]<-get_book_info(bookid=id[i])
+}
+
+n=length(books)
+title<-content<-base<-c()
+for(i in 1:n){
+  title[i]<-books[[i]]$book_title
+  base[[i]]<-books[[i]]$base_info
+  content[[i]]<-books[[i]]$content_intro
+}
+book_df<-cbind(title,base,content)
+
+#pages<-strsplit(base[[15]],'页数:|定价:')
+pages <-sapply(base,function(x) unlist(strsplit(x,'页数:|定价:'))[2])
+names(pages)<-NULL
+pages<-as.integer(gsub('[页 ]','',pages))
+pg_df<-data.frame(title,month,pages,year=substr(month,1,4))
+pg_s<-tapply(pg_df$pages,pg_df$month,sum,na.rm = T)
+pg_sdf<-data.frame(pages=pg_s[],month=names(pg_s),
+                   year=substr(names(pg_s),1,4))
+
+png('pg_bar.png',width=900,height=600)
+
+ggplot(pg_sdf[-1,], aes(x = month, fill=year,colour=pages)) +
+  geom_bar(stat="identity", ymin=0, aes(y=pages, ymax=pages),position="dodge") +
+  geom_text(aes(x=month, y=pages, ymax=pages,
+                label=pages,hjust=ifelse(sign(pages)>0, 0.5, 0)),
+            vjust=-0.8,size=6,colour='blue',
+            position = position_dodge(width=1))+
+  labs(x='年-月份', y='读书页数',
+       title =paste0('总共阅读的页数(>=) ',sum(pg_sdf$pages),' 页'))
+dev.off()
+
+qplot(pages, data=pg_df, geom="histogram", binwidth=50,color=3)
+#qplot(pages, data=pg_df, geom = "freqpoly", binwidth = 50)
+
+png('pghist.png',width=600,height=400)
+m <- ggplot(pg_df, aes(x=pages))
+m+  geom_histogram(binwidth = 50)
+m+  geom_histogram(aes(y = ..density..),fill=3) + geom_density()+
+  labs(x='页数', y='概率密度',title ='书籍页数分布')
+dev.off()
+
